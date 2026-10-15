@@ -1,0 +1,6 @@
+{
+  "name": "UFO Gọi Tên Học Sinh Trả Bài",
+  "description": "Ứng dụng gọi tên học sinh ngẫu nhiên trả bài phong cách UFO bắt cóc độc đáo và vui nhộn dành cho giáo viên.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
