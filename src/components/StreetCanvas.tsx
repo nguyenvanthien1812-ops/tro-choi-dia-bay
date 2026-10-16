@@ -304,11 +304,12 @@ export const StreetCanvas: React.FC<Props> = ({
       const sidewalkY = height * 0.67;
       const sidewalkBottomY = height * 0.94;
 
-      // 1. SKY GRADIENT
-      drawSky(ctx, width, horizonY, night);
+      // 1. SKY GRADIENT (With drifting twilight clouds & twinkling stars)
+      drawSky(ctx, width, horizonY, night, time);
 
-      // 2. SHOPHOUSES & OVERHEAD UTILITY WIRES
+      // 2. SHOPHOUSES, FOLIAGE TREES & OVERHEAD UTILITY WIRES
       drawShophouses(ctx, width, horizonY, roadY, night);
+      drawFoliageTrees(ctx, width, roadY, night);
       drawUtilityWires(ctx, width, horizonY, roadY);
 
       // 3. ROADWAY & RETRO CARS
@@ -517,8 +518,14 @@ export const StreetCanvas: React.FC<Props> = ({
     ufoTiltRef.current = Math.max(Math.min(velocityX * 0.045, 0.28), -0.28);
   };
 
-  // 1. SKY
-  const drawSky = (ctx: CanvasRenderingContext2D, width: number, horizonY: number, night: number) => {
+  // 1. SKY (Twilight Gradient, Drifting Clouds & Twinkling Stars)
+  const drawSky = (
+    ctx: CanvasRenderingContext2D,
+    width: number,
+    horizonY: number,
+    night: number,
+    time: number
+  ) => {
     const skyGrad = ctx.createLinearGradient(0, 0, 0, horizonY);
     const topR = Math.round(204 * (1 - night) + 12 * night);
     const topG = Math.round(228 * (1 - night) + 21 * night);
@@ -534,20 +541,59 @@ export const StreetCanvas: React.FC<Props> = ({
     ctx.fillStyle = skyGrad;
     ctx.fillRect(0, 0, width, horizonY);
 
-    if (night > 0.35) {
-      ctx.fillStyle = `rgba(255, 255, 255, ${(night - 0.35) * 0.9})`;
-      const starOffsets = [0.12, 0.25, 0.38, 0.52, 0.65, 0.78, 0.89];
-      starOffsets.forEach((rx, idx) => {
-        const sx = rx * width;
-        const sy = 16 + ((idx * 31) % (horizonY * 0.5));
+    // Soft drifting clouds in the upper sky (Thanh thoát & bồng bềnh)
+    const cloudAlpha = 0.16 + 0.12 * (1 - night);
+    ctx.fillStyle = night > 0.5 ? `rgba(71, 85, 105, ${cloudAlpha})` : `rgba(255, 255, 255, ${cloudAlpha})`;
+    const cloudSpeed = time * 7;
+    const clouds = [
+      { x: (cloudSpeed + width * 0.08) % (width + 160) - 80, y: horizonY * 0.28, w: 90, h: 22 },
+      { x: (cloudSpeed * 0.65 + width * 0.50) % (width + 200) - 100, y: horizonY * 0.18, w: 120, h: 26 },
+      { x: (cloudSpeed * 0.85 + width * 0.82) % (width + 160) - 80, y: horizonY * 0.42, w: 85, h: 20 },
+    ];
+    clouds.forEach(c => {
+      ctx.beginPath();
+      ctx.ellipse(c.x, c.y, c.w * 0.5, c.h * 0.5, 0, 0, Math.PI * 2);
+      ctx.ellipse(c.x - c.w * 0.22, c.y + 2, c.w * 0.35, c.h * 0.45, 0, 0, Math.PI * 2);
+      ctx.ellipse(c.x + c.w * 0.22, c.y + 2, c.w * 0.35, c.h * 0.45, 0, 0, Math.PI * 2);
+      ctx.fill();
+    });
+
+    // Twinkling Stars at Night
+    if (night > 0.25) {
+      const starAlpha = Math.min((night - 0.25) / 0.75, 1);
+      const starOffsets = [
+        { rx: 0.08, ry: 0.12, s: 1.3 },
+        { rx: 0.18, ry: 0.28, s: 1.0 },
+        { rx: 0.29, ry: 0.15, s: 1.5 },
+        { rx: 0.42, ry: 0.32, s: 0.9 },
+        { rx: 0.56, ry: 0.14, s: 1.4 },
+        { rx: 0.68, ry: 0.26, s: 1.1 },
+        { rx: 0.79, ry: 0.18, s: 1.6 },
+        { rx: 0.91, ry: 0.35, s: 1.2 },
+      ];
+      starOffsets.forEach((st, idx) => {
+        const sx = st.rx * width;
+        const sy = st.ry * horizonY;
+        const twinkle = 0.55 + 0.45 * Math.sin(time * 3 + idx * 2.1);
+        ctx.fillStyle = `rgba(255, 255, 255, ${starAlpha * twinkle})`;
         ctx.beginPath();
-        ctx.arc(sx, sy, 1.2, 0, Math.PI * 2);
+        ctx.arc(sx, sy, st.s, 0, Math.PI * 2);
         ctx.fill();
+
+        // Cross sparkle for larger stars
+        if (st.s > 1.3 && twinkle > 0.8) {
+          ctx.strokeStyle = `rgba(255, 255, 255, ${starAlpha * 0.4})`;
+          ctx.lineWidth = 0.8;
+          ctx.beginPath();
+          ctx.moveTo(sx - 3, sy); ctx.lineTo(sx + 3, sy);
+          ctx.moveTo(sx, sy - 3); ctx.lineTo(sx, sy + 3);
+          ctx.stroke();
+        }
       });
     }
   };
 
-  // 2. SHOPHOUSES
+  // 2. SHOPHOUSES (Refined Classical Moldings, Warm Glowing Windows & Pastel Palettes)
   const drawShophouses = (
     ctx: CanvasRenderingContext2D,
     width: number,
@@ -556,11 +602,11 @@ export const StreetCanvas: React.FC<Props> = ({
     night: number
   ) => {
     const shops = [
-      { name: 'TIỆM BÁNH NGỌT NGÀO', awning: '#f97316', wallDay: '#fff7ed', wallNight: '#1e293b' },
-      { name: 'NHÀ SÁCH TUỔI THƠ', awning: '#eab308', wallDay: '#fefce8', wallNight: '#242b35' },
-      { name: 'BÚN BÒ HUẾ DÌ TƯ', awning: '#dc2626', wallDay: '#fef2f2', wallNight: '#2a2228' },
-      { name: 'CÀ PHÊ MỜI BẠN', awning: '#059669', wallDay: '#ecfdf5', wallNight: '#1a2c26' },
-      { name: 'BÁNH MÌ NÓNG GIÒN', awning: '#ca8a04', wallDay: '#fffbeb', wallNight: '#2d2922' }
+      { name: 'TIỆM BÁNH HOA MAI', awning: '#f97316', wallDay: '#fff7ed', wallNight: '#1e293b', trim: '#fdba74' },
+      { name: 'HIỆU SÁCH TUỔI THƠ', awning: '#eab308', wallDay: '#fefce8', wallNight: '#242b35', trim: '#fde047' },
+      { name: 'BÚN BÒ HUẾ DÌ TƯ', awning: '#dc2626', wallDay: '#fef2f2', wallNight: '#2a2228', trim: '#fca5a5' },
+      { name: 'CÀ PHÊ SÀI GÒN', awning: '#059669', wallDay: '#ecfdf5', wallNight: '#1a2c26', trim: '#6ee7b7' },
+      { name: 'BÁNH MÌ GIÒN RỤM', awning: '#ca8a04', wallDay: '#fffbeb', wallNight: '#2d2922', trim: '#fde68a' }
     ];
 
     const shopW = width / shops.length;
@@ -569,55 +615,79 @@ export const StreetCanvas: React.FC<Props> = ({
     shops.forEach((shop, idx) => {
       const bx = idx * shopW;
 
+      // Wall base
       ctx.fillStyle = night > 0.5 ? shop.wallNight : shop.wallDay;
       ctx.fillRect(bx, horizonY, shopW + 1, houseH);
 
-      ctx.strokeStyle = night > 0.5 ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.07)';
+      // Classical Cornice Moldings (Phào chỉ mái nhà thanh thoát)
+      ctx.fillStyle = night > 0.5 ? '#334155' : shop.trim;
+      ctx.fillRect(bx, horizonY, shopW + 1, 4.5);
+      ctx.fillStyle = night > 0.5 ? 'rgba(0,0,0,0.3)' : 'rgba(0,0,0,0.06)';
+      ctx.fillRect(bx, horizonY + 4.5, shopW + 1, 2);
+
+      // Building separator vertical groove
+      ctx.strokeStyle = night > 0.5 ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.08)';
       ctx.lineWidth = 1;
       ctx.strokeRect(bx, horizonY, shopW, houseH);
 
-      // Windows
+      // Upper floor windows with arched tops & warm night illumination
       const winW = Math.min(shopW * 0.28, 32);
-      const winH = 38;
-      const winY = horizonY + 18;
+      const winH = 36;
+      const winY = horizonY + 16;
 
       [bx + shopW * 0.2, bx + shopW * 0.62].forEach(wx => {
+        // Window outer casing
         ctx.fillStyle = night > 0.5 ? '#0f172a' : '#475569';
-        ctx.fillRect(wx - 2, winY - 2, winW + 4, winH + 4);
+        ctx.beginPath();
+        ctx.roundRect(wx - 2, winY - 2, winW + 4, winH + 4, [6, 6, 2, 2]);
+        ctx.fill();
 
-        if (night > 0.3) {
-          const glowGrad = ctx.createRadialGradient(wx + winW/2, winY + winH/2, 2, wx + winW/2, winY + winH/2, winW);
-          glowGrad.addColorStop(0, '#fef08a');
-          glowGrad.addColorStop(1, '#f59e0b');
+        // Window pane interior (Warm golden glow at night)
+        if (night > 0.25) {
+          const glowGrad = ctx.createRadialGradient(
+            wx + winW / 2, winY + winH / 2, 2,
+            wx + winW / 2, winY + winH / 2, winW * 0.9
+          );
+          glowGrad.addColorStop(0, '#fef9c3');
+          glowGrad.addColorStop(0.6, '#facc15');
+          glowGrad.addColorStop(1, '#b45309');
           ctx.fillStyle = glowGrad;
         } else {
           ctx.fillStyle = '#bae6fd';
         }
-        ctx.fillRect(wx, winY, winW, winH);
+        ctx.beginPath();
+        ctx.roundRect(wx, winY, winW, winH, [4, 4, 1, 1]);
+        ctx.fill();
 
-        ctx.strokeStyle = night > 0.5 ? '#334155' : '#ffffff';
+        // Delicate window muntin bars
+        ctx.strokeStyle = night > 0.5 ? 'rgba(15, 23, 42, 0.7)' : '#ffffff';
         ctx.lineWidth = 1;
         ctx.beginPath();
         ctx.moveTo(wx + winW / 2, winY);
         ctx.lineTo(wx + winW / 2, winY + winH);
-        ctx.moveTo(wx, winY + winH / 2);
-        ctx.lineTo(wx + winW, winY + winH / 2);
+        ctx.moveTo(wx, winY + winH * 0.55);
+        ctx.lineTo(wx + winW, winY + winH * 0.55);
         ctx.stroke();
+
+        // Window sill
+        ctx.fillStyle = night > 0.5 ? '#475569' : '#cbd5e1';
+        ctx.fillRect(wx - 3, winY + winH, winW + 6, 3);
       });
 
-      // Striped Awning
-      const awningY = horizonY + houseH * 0.62;
-      const awningH = 24;
+      // Striped Drop Awning (Mái hiên lượn sóng thanh lịch)
+      const awningY = horizonY + houseH * 0.60;
+      const awningH = 22;
       ctx.fillStyle = shop.awning;
       ctx.beginPath();
       ctx.moveTo(bx, awningY);
       ctx.lineTo(bx + shopW, awningY);
-      ctx.lineTo(bx + shopW + 5, awningY + awningH);
-      ctx.lineTo(bx - 5, awningY + awningH);
+      ctx.lineTo(bx + shopW + 4, awningY + awningH);
+      ctx.lineTo(bx - 4, awningY + awningH);
       ctx.closePath();
       ctx.fill();
 
-      ctx.fillStyle = 'rgba(255,255,255,0.75)';
+      // Alternating ivory stripes
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.78)';
       const stripeCount = 4;
       const stripeW = shopW / (stripeCount * 2);
       for (let s = 0; s < stripeCount; s++) {
@@ -625,17 +695,101 @@ export const StreetCanvas: React.FC<Props> = ({
         ctx.fillRect(sx, awningY, stripeW, awningH);
       }
 
+      // Awning scalloped valence trim
+      ctx.fillStyle = shop.awning;
+      const scallops = 8;
+      const scallopW = shopW / scallops;
+      for (let sc = 0; sc < scallops; sc++) {
+        ctx.beginPath();
+        ctx.arc(bx + sc * scallopW + scallopW / 2, awningY + awningH, scallopW * 0.42, 0, Math.PI);
+        ctx.fill();
+      }
+
       // Shop Signboard
-      const signY = awningY - 22;
+      const signY = awningY - 21;
       ctx.fillStyle = night > 0.5 ? '#1e293b' : '#334155';
-      ctx.fillRect(bx + 4, signY, shopW - 8, 18);
+      ctx.beginPath();
+      ctx.roundRect(bx + 5, signY, shopW - 10, 17, 3);
+      ctx.fill();
+      ctx.strokeStyle = night > 0.5 ? '#475569' : '#94a3b8';
+      ctx.lineWidth = 1;
+      ctx.stroke();
 
       ctx.fillStyle = '#ffffff';
-      const fontSize = Math.min(Math.max(shopW * 0.08, 7.5), 10.5);
+      const fontSize = Math.min(Math.max(shopW * 0.082, 8), 10.5);
       ctx.font = `bold ${fontSize}px "Plus Jakarta Sans", sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(shop.name, bx + shopW / 2, signY + 9);
+
+      // Ground Floor Shop Glass Entrance
+      const doorW = shopW * 0.42;
+      const doorH = roadY - (awningY + awningH + 4);
+      const doorX = bx + (shopW - doorW) / 2;
+      ctx.fillStyle = night > 0.5 ? 'rgba(30, 41, 59, 0.7)' : 'rgba(226, 232, 240, 0.6)';
+      ctx.fillRect(doorX, awningY + awningH + 4, doorW, doorH);
+      ctx.strokeStyle = night > 0.5 ? '#334155' : '#94a3b8';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(doorX, awningY + awningH + 4, doorW, doorH);
+    });
+  };
+
+  // FOLIAGE TREES (Lush, graceful green shade trees along the shophouse line)
+  const drawFoliageTrees = (
+    ctx: CanvasRenderingContext2D,
+    width: number,
+    roadY: number,
+    night: number
+  ) => {
+    const treePositions = [width * 0.19, width * 0.49, width * 0.81];
+
+    treePositions.forEach((tx, idx) => {
+      ctx.save();
+      const treeH = 68;
+      const trunkBaseY = roadY + 2;
+      const trunkTopY = trunkBaseY - treeH;
+
+      // 1. Slender curved trunk
+      ctx.strokeStyle = night > 0.5 ? '#27201c' : '#5c3a21';
+      ctx.lineWidth = 4;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(tx, trunkBaseY);
+      const sway = idx % 2 === 0 ? 5 : -4;
+      ctx.quadraticCurveTo(tx + sway, trunkBaseY - treeH * 0.5, tx + sway * 0.5, trunkTopY);
+      ctx.stroke();
+
+      // Slender branch splits
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(tx + sway * 0.5, trunkTopY + 16);
+      ctx.quadraticCurveTo(tx - 12, trunkTopY + 4, tx - 16, trunkTopY - 6);
+      ctx.moveTo(tx + sway * 0.5, trunkTopY + 12);
+      ctx.quadraticCurveTo(tx + 14, trunkTopY + 2, tx + 18, trunkTopY - 8);
+      ctx.stroke();
+
+      // 2. Multi-layered soft rounded foliage puffs (Bồng bềnh & thanh thoát)
+      const foliageColors = night > 0.5
+        ? ['#143a29', '#194d36', '#1e5e42', '#267351']
+        : ['#15803d', '#16a34a', '#22c55e', '#4ade80'];
+
+      const puffs = [
+        { ox: sway * 0.5, oy: trunkTopY - 12, r: 23, c: foliageColors[0] },
+        { ox: -16, oy: trunkTopY - 10, r: 17, c: foliageColors[1] },
+        { ox: 16, oy: trunkTopY - 12, r: 18, c: foliageColors[1] },
+        { ox: -6, oy: trunkTopY - 24, r: 16, c: foliageColors[2] },
+        { ox: 8, oy: trunkTopY - 25, r: 15, c: foliageColors[3] },
+        { ox: 0, oy: trunkTopY - 18, r: 13, c: foliageColors[3] }
+      ];
+
+      puffs.forEach(p => {
+        ctx.fillStyle = p.c;
+        ctx.beginPath();
+        ctx.arc(tx + p.ox, p.oy, p.r, 0, Math.PI * 2);
+        ctx.fill();
+      });
+
+      ctx.restore();
     });
   };
 
@@ -686,26 +840,70 @@ export const StreetCanvas: React.FC<Props> = ({
 
   const drawVintageCar = (ctx: CanvasRenderingContext2D, x: number, y: number, color: string, night: number) => {
     ctx.save();
+
+    // Headlight road projection beam at night
+    if (night > 0.3) {
+      const beamGrad = ctx.createRadialGradient(x + 72, y + 17, 3, x + 120, y + 24, 60);
+      beamGrad.addColorStop(0, 'rgba(254, 240, 138, 0.45)');
+      beamGrad.addColorStop(1, 'rgba(254, 240, 138, 0)');
+      ctx.fillStyle = beamGrad;
+      ctx.beginPath();
+      ctx.moveTo(x + 68, y + 15);
+      ctx.lineTo(x + 135, y - 2);
+      ctx.lineTo(x + 135, y + 36);
+      ctx.lineTo(x + 68, y + 21);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    // Car lower body
     ctx.fillStyle = color;
     ctx.beginPath();
     ctx.roundRect(x, y + 10, 68, 20, [5, 5, 2, 2]);
     ctx.fill();
+
+    // Chrome bumper & side trim
+    ctx.fillStyle = '#e2e8f0';
+    ctx.fillRect(x - 2, y + 23, 72, 2);
+    ctx.beginPath();
+    ctx.roundRect(x + 65, y + 21, 5, 5, 1);
+    ctx.fill();
+
+    // Cabin roof
     ctx.fillStyle = '#f8fafc';
     ctx.beginPath();
     ctx.roundRect(x + 12, y, 40, 13, [7, 7, 0, 0]);
     ctx.fill();
+
+    // Windows
     ctx.fillStyle = '#38bdf8';
     ctx.fillRect(x + 16, y + 3, 15, 8);
     ctx.fillRect(x + 35, y + 3, 13, 8);
-    ctx.fillStyle = '#0f172a';
-    ctx.beginPath();
-    ctx.arc(x + 15, y + 30, 6.5, 0, Math.PI * 2);
-    ctx.arc(x + 53, y + 30, 6.5, 0, Math.PI * 2);
-    ctx.fill();
-    if (night > 0.4) {
+
+    // Wheels: White-wall vintage tires
+    [x + 15, x + 53].forEach(wx => {
+      // Outer black rubber
+      ctx.fillStyle = '#0f172a';
+      ctx.beginPath();
+      ctx.arc(wx, y + 30, 6.5, 0, Math.PI * 2);
+      ctx.fill();
+      // Inner white wall
+      ctx.fillStyle = '#f8fafc';
+      ctx.beginPath();
+      ctx.arc(wx, y + 30, 4.2, 0, Math.PI * 2);
+      ctx.fill();
+      // Chrome hubcap
+      ctx.fillStyle = '#94a3b8';
+      ctx.beginPath();
+      ctx.arc(wx, y + 30, 2, 0, Math.PI * 2);
+      ctx.fill();
+    });
+
+    // Glowing headlight
+    if (night > 0.3) {
       ctx.fillStyle = '#fef08a';
       ctx.beginPath();
-      ctx.arc(x + 68, y + 17, 3, 0, Math.PI * 2);
+      ctx.arc(x + 68, y + 17, 3.2, 0, Math.PI * 2);
       ctx.fill();
     }
     ctx.restore();
@@ -713,26 +911,80 @@ export const StreetCanvas: React.FC<Props> = ({
 
   const drawTaxi = (ctx: CanvasRenderingContext2D, x: number, y: number, night: number) => {
     ctx.save();
+
+    // Headlight road projection beam at night
+    if (night > 0.3) {
+      const beamGrad = ctx.createRadialGradient(x - 4, y + 17, 3, x - 55, y + 24, 60);
+      beamGrad.addColorStop(0, 'rgba(254, 240, 138, 0.45)');
+      beamGrad.addColorStop(1, 'rgba(254, 240, 138, 0)');
+      ctx.fillStyle = beamGrad;
+      ctx.beginPath();
+      ctx.moveTo(x, y + 15);
+      ctx.lineTo(x - 65, y - 2);
+      ctx.lineTo(x - 65, y + 36);
+      ctx.lineTo(x, y + 21);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    // Taxi body
     ctx.fillStyle = '#f8fafc';
     ctx.beginPath();
     ctx.roundRect(x, y + 10, 70, 20, [5, 5, 2, 2]);
     ctx.fill();
+
+    // Green stripe
     ctx.fillStyle = '#10b981';
     ctx.fillRect(x, y + 17, 70, 3.5);
+
+    // Chrome bumper
+    ctx.fillStyle = '#cbd5e1';
+    ctx.fillRect(x - 2, y + 23, 74, 2);
+
+    // Cabin roof
     ctx.fillStyle = '#e2e8f0';
     ctx.beginPath();
     ctx.roundRect(x + 14, y, 42, 13, [7, 7, 0, 0]);
     ctx.fill();
+
+    // Illuminated TAXI sign on roof
     ctx.fillStyle = '#f59e0b';
-    ctx.fillRect(x + 28, y - 5, 14, 5);
+    ctx.beginPath();
+    ctx.roundRect(x + 28, y - 5, 14, 5, 1.5);
+    ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 3.5px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('TAXI', x + 35, y - 2.5);
+
+    // Windows
     ctx.fillStyle = '#0284c7';
     ctx.fillRect(x + 17, y + 3, 16, 8);
     ctx.fillRect(x + 37, y + 3, 15, 8);
-    ctx.fillStyle = '#0f172a';
-    ctx.beginPath();
-    ctx.arc(x + 15, y + 30, 6.5, 0, Math.PI * 2);
-    ctx.arc(x + 55, y + 30, 6.5, 0, Math.PI * 2);
-    ctx.fill();
+
+    // Wheels: White-wall vintage tires
+    [x + 15, x + 55].forEach(wx => {
+      ctx.fillStyle = '#0f172a';
+      ctx.beginPath();
+      ctx.arc(wx, y + 30, 6.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#f8fafc';
+      ctx.beginPath();
+      ctx.arc(wx, y + 30, 4.2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#94a3b8';
+      ctx.beginPath();
+      ctx.arc(wx, y + 30, 2, 0, Math.PI * 2);
+      ctx.fill();
+    });
+
+    if (night > 0.3) {
+      ctx.fillStyle = '#fef08a';
+      ctx.beginPath();
+      ctx.arc(x, y + 17, 3.2, 0, Math.PI * 2);
+      ctx.fill();
+    }
     ctx.restore();
   };
 
@@ -1008,18 +1260,77 @@ export const StreetCanvas: React.FC<Props> = ({
         const ufoUnderbellyY = ufoYRef.current + 32;
 
         const p = st.abductionProgress;
-        const currentX = gripX + (ufoX - gripX) * Math.min(p * 1.2, 1);
-        const currentY = gripY - (gripY - ufoUnderbellyY) * p;
+        // Non-linear upward ease: accelerating into the tractor beam
+        const easeP = p * p;
+        const currentX = gripX + (ufoX - gripX) * Math.min(p * 1.25, 1);
+        const currentY = gripY - (gripY - ufoUnderbellyY) * easeP;
 
-        const floatTilt = Math.sin(time * 8 + st.x) * 0.35 + (p * 0.4);
+        // Energy tether linking from former grip to student's feet during early lift
+        if (p < 0.45) {
+          const filamentAlpha = (1 - p / 0.45) * 0.8;
+          ctx.save();
+          ctx.strokeStyle = `rgba(52, 211, 153, ${filamentAlpha})`;
+          ctx.lineWidth = 2.2;
+          ctx.shadowColor = '#34d399';
+          ctx.shadowBlur = 8;
+          ctx.beginPath();
+          ctx.moveTo(gripX, gripY);
+          ctx.quadraticCurveTo(
+            (gripX + currentX) / 2 + Math.sin(time * 20) * 8,
+            (gripY + currentY) / 2,
+            currentX,
+            currentY + 16
+          );
+          ctx.stroke();
+          ctx.restore();
+        }
+
+        // Draw quantum suction flash at UFO underbelly hatch when progress >= 0.80
+        if (p >= 0.80) {
+          const flashP = (p - 0.80) / 0.20;
+          ctx.save();
+          ctx.translate(ufoX, ufoUnderbellyY);
+          
+          // Expanding quantum pulse ring
+          ctx.strokeStyle = `rgba(167, 243, 208, ${1 - flashP})`;
+          ctx.lineWidth = 3.5 - flashP * 2.5;
+          ctx.shadowColor = '#6ee7b7';
+          ctx.shadowBlur = 12;
+          ctx.beginPath();
+          ctx.arc(0, 0, 10 + flashP * 38, 0, Math.PI * 2);
+          ctx.stroke();
+
+          // 8-point bright starburst flare
+          const flareAlpha = Math.sin(flashP * Math.PI);
+          ctx.strokeStyle = `rgba(255, 255, 255, ${flareAlpha * 0.95})`;
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(-28 * flareAlpha, 0); ctx.lineTo(28 * flareAlpha, 0);
+          ctx.moveTo(0, -28 * flareAlpha); ctx.lineTo(0, 28 * flareAlpha);
+          ctx.moveTo(-18 * flareAlpha, -18 * flareAlpha); ctx.lineTo(18 * flareAlpha, 18 * flareAlpha);
+          ctx.moveTo(-18 * flareAlpha, 18 * flareAlpha); ctx.lineTo(18 * flareAlpha, -18 * flareAlpha);
+          ctx.stroke();
+
+          // Inner white burst
+          ctx.fillStyle = `rgba(255, 255, 255, ${flareAlpha})`;
+          ctx.beginPath();
+          ctx.arc(0, 0, 7 * flareAlpha, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.restore();
+        }
+
+        const floatTilt = Math.sin(time * 10 + st.x) * 0.22;
 
         ctx.translate(currentX, currentY);
         ctx.rotate(floatTilt);
 
-        drawSlenderCharacter(ctx, st, 'abducted', time);
+        drawFloatingAbductedCharacter(ctx, st, time, p);
         ctx.restore();
 
-        drawStudentBadge(ctx, st.student.name, currentX, currentY - 42, true, st.speechText);
+        if (p < 0.82) {
+          drawStudentBadge(ctx, st.student.name, currentX, currentY - 48, true, st.speechText);
+        }
         return;
       }
 
@@ -1068,6 +1379,253 @@ export const StreetCanvas: React.FC<Props> = ({
 
       drawStudentBadge(ctx, st.student.name, st.x, st.y - 42, st.isTargeted, st.speechText);
     });
+  };
+
+  // DEDICATED FLOATING ABDUCTED CHARACTER (Being sucked into UFO hatch)
+  // Zero-gravity physics: arms reaching upwards towards beam, floating hair,
+  // rotating cyan energy rings, upward suction streamlines & quantum hatch flash!
+  const drawFloatingAbductedCharacter = (
+    ctx: CanvasRenderingContext2D,
+    st: RenderStudent,
+    time: number,
+    progress: number
+  ) => {
+    ctx.save();
+
+    // Scale down smoothly as student enters the UFO underbelly hatch
+    if (progress > 0.78) {
+      const scaleIn = Math.max(0, 1 - (progress - 0.78) / 0.20);
+      ctx.scale(scaleIn, scaleIn);
+    }
+
+    const isFemale = st.gender === 'female';
+
+    // 1. LUMINOUS ANTI-GRAVITY AURA (Tractor beam levitation envelope)
+    const auraGrad = ctx.createRadialGradient(0, -22, 4, 0, -22, 38);
+    auraGrad.addColorStop(0, 'rgba(167, 243, 208, 0.45)');
+    auraGrad.addColorStop(0.7, 'rgba(52, 211, 153, 0.18)');
+    auraGrad.addColorStop(1, 'rgba(16, 185, 129, 0)');
+    ctx.fillStyle = auraGrad;
+    ctx.beginPath();
+    ctx.arc(0, -22, 42, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 2. TWO ROTATING LUMINOUS ENERGY RINGS (Circling torso and waist)
+    for (let r = 0; r < 2; r++) {
+      const ringY = -18 - r * 14;
+      const ringRot = time * 7 + r * Math.PI * 0.6;
+      const ringRx = 18 + Math.sin(time * 5 + r) * 2;
+      const ringRy = 5.5;
+
+      ctx.save();
+      ctx.translate(0, ringY);
+      ctx.rotate(0.18 * (r === 0 ? 1 : -1));
+      ctx.strokeStyle = r === 0 ? 'rgba(52, 211, 153, 0.85)' : 'rgba(110, 231, 183, 0.75)';
+      ctx.lineWidth = 1.6;
+      ctx.shadowColor = '#34d399';
+      ctx.shadowBlur = 8;
+      ctx.beginPath();
+      ctx.ellipse(0, 0, ringRx, ringRy, ringRot * 0.1, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // Sparkle bead on the ring
+      const beadAngle = ringRot;
+      const bx = Math.cos(beadAngle) * ringRx;
+      const by = Math.sin(beadAngle) * ringRy;
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(bx, by, 2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    // 3. UPWARD STREAMLINES (Suction wind pulling upwards)
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+    ctx.lineWidth = 1.2;
+    for (let s = 0; s < 4; s++) {
+      const sx = -14 + s * 9;
+      const streamLen = 14 + ((s * 7) % 10);
+      const syOffset = ((time * 40 + s * 15) % 35) - 35;
+      ctx.beginPath();
+      ctx.moveTo(sx, syOffset);
+      ctx.lineTo(sx + (s % 2 === 0 ? 1 : -1), syOffset - streamLen);
+      ctx.stroke();
+    }
+
+    // 4. FLOATING LEGS & DANGLING FEET (Pointing downwards into the suction vortex)
+    const legFlutter1 = Math.sin(time * 12 + st.baseX) * 2.5;
+    const legFlutter2 = -Math.sin(time * 12 + st.baseX) * 2.5;
+
+    // Legs
+    ctx.fillStyle = isFemale ? st.skinColor : st.bottomColor;
+    ctx.fillRect(-6.5, -6, 4, 16 + legFlutter1 * 0.5);
+    ctx.fillRect(2.5, -6, 4, 16 + legFlutter2 * 0.5);
+
+    // Socks & Shoes
+    ctx.fillStyle = '#ffffff'; // White socks
+    ctx.fillRect(-6.5, 10 + legFlutter1 * 0.5, 4, 3.5);
+    ctx.fillRect(2.5, 10 + legFlutter2 * 0.5, 4, 3.5);
+
+    ctx.fillStyle = '#1e293b'; // Shoes dangling downwards
+    ctx.beginPath();
+    ctx.roundRect(-7, 13.5 + legFlutter1 * 0.5, 5, 6, 2);
+    ctx.roundRect(2, 13.5 + legFlutter2 * 0.5, 5, 6, 2);
+    ctx.fill();
+
+    // 5. LOWER BODY (Skirt or Pants)
+    if (isFemale) {
+      ctx.fillStyle = st.bottomColor;
+      ctx.beginPath();
+      ctx.moveTo(-9, -15);
+      ctx.lineTo(9, -15);
+      ctx.lineTo(12, -4);
+      ctx.lineTo(-12, -4);
+      ctx.closePath();
+      ctx.fill();
+    } else {
+      ctx.fillStyle = st.bottomColor;
+      ctx.fillRect(-8, -15, 16, 11);
+    }
+
+    // 6. TORSO / UNIFORM SHIRT
+    ctx.fillStyle = st.topColor;
+    ctx.beginPath();
+    ctx.roundRect(-8, -31, 16, 17, 3);
+    ctx.fill();
+
+    // Collar
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.moveTo(-5, -31);
+    ctx.lineTo(0, -25);
+    ctx.lineTo(5, -31);
+    ctx.fill();
+
+    // Red Scarf (Khăn quàng đỏ) fluttering upwards in suction
+    ctx.fillStyle = '#dc2626';
+    const scarfFlutter = Math.sin(time * 16) * 3;
+    ctx.beginPath();
+    ctx.moveTo(-2, -26);
+    ctx.lineTo(2, -26);
+    ctx.lineTo(4 + scarfFlutter, -36);
+    ctx.lineTo(0 + scarfFlutter, -38);
+    ctx.closePath();
+    ctx.fill();
+
+    // 7. OUTSTRETCHED ARMS (Reaching up towards the beam and saucer hatch!)
+    const armFlutter = Math.sin(time * 14) * 2;
+    ctx.fillStyle = st.skinColor;
+    
+    // Left arm reaching up-left (-35 deg)
+    ctx.save();
+    ctx.translate(-7, -29);
+    ctx.rotate(-0.55 + armFlutter * 0.05);
+    ctx.fillRect(-2, -18, 4, 18);
+    // Left hand with splayed fingers reaching up
+    ctx.beginPath();
+    ctx.arc(0, -20, 2.8, 0, Math.PI * 2);
+    ctx.fill();
+    // Fingers
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = st.skinColor;
+    ctx.beginPath();
+    ctx.moveTo(-1.5, -20); ctx.lineTo(-3, -24);
+    ctx.moveTo(0, -20); ctx.lineTo(0, -25);
+    ctx.moveTo(1.5, -20); ctx.lineTo(3, -24);
+    ctx.stroke();
+    ctx.restore();
+
+    // Right arm reaching up-right (+35 deg)
+    ctx.save();
+    ctx.translate(7, -29);
+    ctx.rotate(0.55 - armFlutter * 0.05);
+    ctx.fillRect(-2, -18, 4, 18);
+    // Right hand with splayed fingers reaching up
+    ctx.beginPath();
+    ctx.arc(0, -20, 2.8, 0, Math.PI * 2);
+    ctx.fill();
+    // Fingers
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = st.skinColor;
+    ctx.beginPath();
+    ctx.moveTo(-1.5, -20); ctx.lineTo(-3, -24);
+    ctx.moveTo(0, -20); ctx.lineTo(0, -25);
+    ctx.moveTo(1.5, -20); ctx.lineTo(3, -24);
+    ctx.stroke();
+    ctx.restore();
+
+    // 8. HEAD TILTED BACK LOOKING UP
+    ctx.fillStyle = st.skinColor;
+    ctx.beginPath();
+    ctx.arc(0, -38, 7.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Facial features: Wide eyes looking up, mouth open in astonishment ("O")
+    ctx.fillStyle = '#0f172a';
+    ctx.beginPath();
+    ctx.arc(-2.8, -39.5, 1.3, 0, Math.PI * 2);
+    ctx.arc(2.8, -39.5, 1.3, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Open mouth ("O")
+    ctx.fillStyle = '#b91c1c';
+    ctx.beginPath();
+    ctx.ellipse(0, -35.5, 2.2, 3, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Glasses
+    if (st.hasGlasses) {
+      ctx.strokeStyle = '#334155';
+      ctx.lineWidth = 0.9;
+      ctx.strokeRect(-4.8, -41, 3.6, 3.2);
+      ctx.strokeRect(1.2, -41, 3.6, 3.2);
+      ctx.beginPath();
+      ctx.moveTo(-1.2, -39.5); ctx.lineTo(1.2, -39.5);
+      ctx.stroke();
+    }
+
+    // 9. HAIR (Anti-gravity physics: flowing upwards towards UFO hatch!)
+    ctx.fillStyle = st.hairColor;
+    const hairFloat = Math.sin(time * 15 + st.baseX) * 3;
+    if (st.hairStyle === 'ponytail') {
+      ctx.beginPath();
+      ctx.arc(0, -40, 7.8, Math.PI * 0.9, Math.PI * 2.1);
+      ctx.fill();
+      // Upward floating ponytail
+      ctx.beginPath();
+      ctx.moveTo(-3, -45);
+      ctx.quadraticCurveTo(-6 + hairFloat, -56, 2 + hairFloat, -62);
+      ctx.quadraticCurveTo(8, -54, 3, -45);
+      ctx.closePath();
+      ctx.fill();
+      // Hair tie
+      ctx.fillStyle = '#ea580c';
+      ctx.beginPath();
+      ctx.arc(0, -45.5, 2.2, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (st.hairStyle === 'pigtails') {
+      ctx.beginPath();
+      ctx.arc(0, -40, 7.8, 0, Math.PI * 2);
+      ctx.fill();
+      // Two floating pigtails pointing up-left and up-right
+      ctx.beginPath();
+      ctx.ellipse(-7, -48 + hairFloat * 0.5, 3.5, 8, -0.4, 0, Math.PI * 2);
+      ctx.ellipse(7, -48 - hairFloat * 0.5, 3.5, 8, 0.4, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      ctx.beginPath();
+      ctx.arc(0, -40, 7.8, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(-7, -44);
+      ctx.lineTo(-4 + hairFloat, -50);
+      ctx.lineTo(0, -46);
+      ctx.lineTo(4 - hairFloat, -50);
+      ctx.lineTo(7, -44);
+      ctx.fill();
+    }
+
+    ctx.restore();
   };
 
   // DEDICATED CLINGING CHARACTER (Origin (0,0) is EXACTLY the HANDS GRIPPING THE POLE!)
